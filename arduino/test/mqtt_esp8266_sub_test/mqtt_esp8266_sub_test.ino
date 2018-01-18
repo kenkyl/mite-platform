@@ -1,11 +1,12 @@
 #include <ESP8266WiFi.h>
 #include <stdio.h>
+#include <string.h>
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
-
 /***************** Pins *****************/
-#define PIN_PC    0
+#define PIN_LED     5
+#define PIN_BUZ     4
 /****************************************/
 
 /*********** WIFI Credentials ***********/
@@ -29,14 +30,22 @@ Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO
 /****************************************/
 
 /*************** Feeds ******************/
-// Setup a feed called 'photocell' for publishing.
-// Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/photocell");
+// Setup a feed called 'onoffbutton' for subscribing to changes.
+Adafruit_MQTT_Subscribe onoffbutton = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/on_off");
+/****************************************/
+
+/**************** Other *****************/
+#define LED_HIGH      255
+#define LED_LOW       0
+#define BUZ_FREQ      784
 /****************************************/
 
 void setup() {
   Serial.begin(115200);
   delay(100);
+
+  // initialize LED pin
+  pinMode(PIN_LED, OUTPUT); 
 
   Serial.println();
   Serial.println();
@@ -59,35 +68,58 @@ void setup() {
   Serial.print("Gateway: ");
   Serial.println(WiFi.gatewayIP());
 
-  // would add subscribe here
-
+  // Setup MQTT subscription for onoff feed.
+  mqtt.subscribe(&onoffbutton);
 }
-
-int sensorValue;
-float voltage; 
 
 void loop() {
-  // establish/ensure connection 
-  MQTT_connect(); 
+  // Ensure the connection to the MQTT server is alive (this will make the first
+  // connection and automatically reconnect when disconnected).  See the MQTT_connect
+  // function definition further below.
+  MQTT_connect();
 
-  // delay between connect and publish 
-  delay(2000);
+  // this is our 'wait for incoming subscription packets' busy subloop
+  // try to spend your time here
 
-  // collect and adjust photcell value
-  sensorValue = analogRead(PIN_PC); 
-  voltage = sensorValue * (5.00 / 1023.00);
-
-  // publish 
-  Serial.print(F("Sending photocell val: "));
-  Serial.print(voltage); 
-  Serial.print("..."); 
-  if (! photocell.publish(voltage)) {
-    Serial.println(F("Failed"));
-  } else {
-    Serial.println(F("OK!"));
+  Adafruit_MQTT_Subscribe *subscription;
+  while ((subscription = mqtt.readSubscription(5000))) {
+    if (subscription == &onoffbutton) {
+      Serial.print(F("Got: "));
+      Serial.println((char *)onoffbutton.lastread);
+      if (strcmp((char *)onoffbutton.lastread, "OFF") == 0) {
+        analogWrite(PIN_LED, LED_LOW);
+      }
+      else if (strcmp((char *)onoffbutton.lastread, "ON") == 0) {
+        analogWrite(PIN_LED, LED_HIGH);
+      }
+    }
   }
-
 }
+
+/*
+void check(float value) {
+  float limit = 1.5;
+  // WRITE IN LOGIC HERE 
+  if (value < limit) {
+    Serial.printf("ALERT: Value below limit\n"); 
+    alert(); 
+  }
+}
+
+
+void alert() {
+  // turn light and buzzer on 
+  noTone(buzPin); 
+  analogWrite(ledPin, ledHigh);
+  tone(buzPin, melodyFreq); 
+
+  delay(2000); 
+
+  // turn light and buzzer off
+  analogWrite(ledPin, ledLow); 
+  noTone(buzPin); 
+}
+*/
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
@@ -115,3 +147,4 @@ void MQTT_connect() {
   }
   Serial.println("MQTT Connected!");
 }
+
