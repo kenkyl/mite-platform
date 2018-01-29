@@ -9,7 +9,7 @@
 #include "DHT.h"
 
 #define DHTPIN 4     // what digital pin the DHT22 is conected to
-#define DHTTYPE DHT22   // there are multiple kinds of DHT sensors
+#define DHTTYPE DHT11   // there are multiple kinds of DHT sensors
 
 DHT dht(DHTPIN, DHTTYPE);
 
