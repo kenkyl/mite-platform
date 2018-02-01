@@ -34,9 +34,9 @@ Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO
 /*************** Feeds ******************/
 // Setup publishing feeds 
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
-//Adafruit_MQTT_Publish photocell = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/photocell");
-//Adafruit_MQTT_Publish humidity = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/humidity");
-//Adafruit_MQTT_Publish temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/temp");
+Adafruit_MQTT_Publish light = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/photocell");
+Adafruit_MQTT_Publish humidity = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/humidity");
+Adafruit_MQTT_Publish temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/temp");
 Adafruit_MQTT_Publish noise = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/noise");
 /****************************************/
 
@@ -83,16 +83,16 @@ void loop() {
   MQTT_connect(); 
   delay(50); 
   char incomingSerialData[INPUT_SIZE+1] = {0};
-  char commandString[INPUT_SIZE+1] = {0}; 
+  //char commandString[INPUT_SIZE+1] = {0}; 
   if (getCommand(incomingSerialData) > 0) {
     //
-    strcpy(commandString, incomingSerialData); 
-    Serial.print("command string: "); 
-    Serial.print(incomingSerialData); 
-    Serial.print(" || ");
-    Serial.println(commandString); 
+//    strcpy(commandString, incomingSerialData); 
+//    Serial.print("command string: "); 
+//    Serial.print(incomingSerialData); 
+//    Serial.print(" || ");
+//    Serial.println(commandString); 
     //
-    delay(50); 
+    //delay(50); 
     parseCommand(incomingSerialData); 
     delay(50);
     //swSer.flush(); 
@@ -140,17 +140,52 @@ void parseCommand(char *commandString) {
       Serial.print(pubSet[0]); Serial.print(" ");
       Serial.print("pubSet[1]= ");
       Serial.println(pubSet[1]);
-      Serial.println("all checked"); 
-      if (strcmp(pubSet[0], "noise") == 0) {
-        if (! noise.publish(pubSet[1])) {
-          Serial.println(F("noise publish failed"));
-        } else {
-          Serial.println(F("noise publish OK!"));
-        }
-      }
+      publishToFeed(pubSet[0], pubSet[1]); 
+//      if (strcmp(pubSet[0], "noise") == 0) {
+//        if (! noise.publish(pubSet[1])) {
+//          Serial.println(F("noise publish failed"));
+//        } else {
+//          Serial.println(F("noise publish OK!"));
+//        }
+//      }
     }
   }
  
+}
+
+void publishToFeed(char *feed, char *value) {
+  Serial.print("feed= ");
+  Serial.print(feed); Serial.print(" ");
+  Serial.print("value= ");
+  Serial.println(value);
+  if (strcmp(feed, "noise") == 0) {
+    if (! noise.publish(value)) {
+      Serial.println(F("noise publish failed"));
+    } else {
+      Serial.println(F("noise publish OK!"));
+    }
+  }
+  else if (strcmp(feed, "humidity") == 0) {
+    if (! humidity.publish(value)) {
+      Serial.println(F("humidity publish failed"));
+    } else {
+      Serial.println(F("humidity publish OK!"));
+    }
+  }
+  else if (strcmp(feed, "temp") == 0) {
+    if (! temp.publish(value)) {
+      Serial.println(F("temp publish failed"));
+    } else {
+      Serial.println(F("temp publish OK!"));
+    }
+  }
+  else if (strcmp(feed, "light") == 0) {
+    if (! light.publish(value)) {
+      Serial.println(F("light publish failed"));
+    } else {
+      Serial.println(F("light publish OK!"));
+    }
+  }
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.
