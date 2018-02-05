@@ -6,7 +6,6 @@
  
 /* includes */
 // general
-#include <SoftwareSerial.h>
 #include <stdio.h> 
 // tsl
 #include <Wire.h>
@@ -28,18 +27,12 @@ Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 1234
 // dht
 DHT dht(PIN_DHT, TYPE_DHT);
 // max
-const int sampleWindow = 50; // Sample window width in mS (50 mS = 20Hz)
+const int sampleWindow = 100; // Sample window width in mS (50 mS = 20Hz)
 unsigned int sample;
-// swser
-SoftwareSerial mySerial(PIN_RX, PIN_TX); // RX, TX
 
-void setup() {
-  // define pin modes for tx, rx:
-  pinMode(PIN_RX, INPUT);
-  pinMode(PIN_TX, OUTPUT);
-  
+void setup() {  
   // Open serial communications and wait for port to open:
-  Serial.begin(9600);
+  Serial.begin(57600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
@@ -73,55 +66,63 @@ void setup() {
   delay(100); 
   
   // set the data rate for the SoftwareSerial port
-  mySerial.begin(9600);
+  //mySerial.begin(9600);
   delay(100); 
 }
 
+unsigned int timer = 0; 
 void loop() { // run over and over
-    //delay(500); 
-    // read MAX
-    double valMAX; 
-    if (readMAX(&valMAX) == true) {
-      mySerial.print("noise:"); 
-      mySerial.print(valMAX); 
-      Serial.print("MAX read success: ");
-      Serial.println(valMAX);
-    } else {
-      Serial.println("MAX read fail!");
-    }
-    
-    delay(1000);
-     
-    // read DHT
-    float valDHT[2]; 
-    if (readDHT(valDHT) == true) {
-      mySerial.print("humidity:"); 
-      mySerial.print(valDHT[0]); 
-      delay(500); 
-      mySerial.print("temp:"); 
-      mySerial.print(valDHT[1]);
-      Serial.print("DHT read success: ");
-      Serial.print(valDHT[0]);
-      Serial.print(", ");
-      Serial.println(valDHT[1]); 
-    } else {
-      Serial.println("DHT read fail!");
-    }
 
-    delay (1000); 
-     
-    // read TSL
-    float valTSL; 
-    if (readTSL(&valTSL) == true) {
-      mySerial.print("light:"); 
-      mySerial.print(valTSL); 
-      Serial.print("TSL read success: ");
-      Serial.println(valTSL);
-    } else {
-      Serial.println("MAX read fail!");
+    if (timer >= 60000) timer = 0;  // reset timer each minute
+    // semd all sensor data every 30 seconds 
+    if (timer % 30000 == 0) { 
+      sendTSL(); 
+      delay(50); 
+      sendMAX(); 
+      delay(50);
+      sendDHT(); 
+    }
+    // send light and noise every 3 seconds 
+    else if (timer % 3000 == 0) {
+      sendTSL(); 
+      delay(50);  
+      sendMAX();     
     }
     
     delay(1000); 
+    timer+=1000; 
+}
+
+/***** SEND FUNCTIONS *****/
+void sendTSL() {
+  float valTSL; 
+  if (readTSL(&valTSL) == true) {
+    Serial.print("light:"); 
+    Serial.println(valTSL); 
+  } else {
+    Serial.println("MAX read fail!");
+  }
+}
+void sendMAX() {
+  double valMAX; 
+  if (readMAX(&valMAX) == true) {
+    Serial.print("noise:"); 
+    Serial.println(valMAX); 
+  } else {
+    Serial.println("MAX read fail!");
+  }
+}
+void sendDHT() {
+  float valDHT[2]; 
+  if (readDHT(valDHT) == true) {
+    Serial.print("humidity:"); 
+    Serial.println(valDHT[0]); 
+    delay(50); 
+    Serial.print("temp:"); 
+    Serial.println(valDHT[1]);
+  } else {
+    Serial.println("DHT read fail!");
+  }
 }
 
 /***** HELPER FUNCTIONS *****/
@@ -180,9 +181,6 @@ boolean readTSL(float *valTSL) {
   /* Display the results (light is measured in lux) */
   if (event.light)
   {
-//    Serial.print("Light: ");
-//    Serial.print(event.light);
-//    Serial.print(" Lux");
     *valTSL = event.light; 
     return true; 
   }
@@ -208,13 +206,6 @@ boolean readDHT(float *valDHT) {
     Serial.println("Failed to read from DHT sensor!");
     return false;
   }
-
-//  Serial.print("Humidity: ");
-//  Serial.print(h);
-//  Serial.print("% :: ");
-//  Serial.print("Temperature: ");
-//  Serial.print(t);
-//  Serial.println(" *C");
 
   // set values and return 
   valDHT[0] = h; 
