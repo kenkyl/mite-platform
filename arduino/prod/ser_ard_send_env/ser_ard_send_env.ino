@@ -27,7 +27,7 @@ Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 1234
 // dht
 DHT dht(PIN_DHT, TYPE_DHT);
 // max
-const int sampleWindow = 100; // Sample window width in mS (50 mS = 20Hz)
+const int sampleWindow = 50; // Sample window width in mS (50 mS = 20Hz)
 unsigned int sample;
 
 void setup() {  
@@ -64,29 +64,31 @@ void setup() {
   // (3) max 
   Serial.println("(3) MAX sensor intialized");
   delay(100); 
-  
-  // set the data rate for the SoftwareSerial port
-  //mySerial.begin(9600);
-  delay(100); 
 }
 
 unsigned int timer = 0; 
-void loop() { // run over and over
+void loop() { 
 
     if (timer >= 60000) timer = 0;  // reset timer each minute
     // semd all sensor data every 30 seconds 
-    if (timer % 30000 == 0) { 
-      sendTSL(); 
-      delay(50); 
+    if (timer % 60000 == 0) { 
       sendMAX(); 
+      delay(50); 
+      sendTSL(); 
       delay(50);
       sendDHT(); 
     }
-    // send light and noise every 3 seconds 
-    else if (timer % 3000 == 0) {
+    // send light and noise every 2 seconds 
+    else if (timer % 6000 == 0) {
+      sendMAX();
+      delay(50);    
+      sendTSL();
+    }
+    else if (timer % 3000 == 0) { 
       sendTSL(); 
-      delay(50);  
-      sendMAX();     
+    }
+    else if (timer % 2000 == 0) {
+      sendMAX(); 
     }
     
     delay(1000); 
@@ -158,8 +160,9 @@ void configureSensor(void)
 {
   /* You can also manually set the gain or enable auto-gain support */
   // tsl.setGain(TSL2561_GAIN_1X);      /* No gain ... use in bright light to avoid sensor saturation */
-  // tsl.setGain(TSL2561_GAIN_16X);     /* 16x gain ... use in low light to boost sensitivity */
-  tsl.enableAutoRange(true);            /* Auto-gain ... switches automatically between 1x and 16x */
+  tsl.setGain(TSL2561_GAIN_16X);     /* 16x gain ... use in low light to boost sensitivity */
+  //tsl.setGain(TSL2561_GAIN_8X);
+  //tsl.enableAutoRange(true);            /* Auto-gain ... switches automatically between 1x and 16x */
   
   /* Changing the integration time gives you better sensor resolution (402ms = 16-bit data) */
   //tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);      /* fast but low resolution */
@@ -168,8 +171,9 @@ void configureSensor(void)
 
   /* Update these values depending on what you've set above! */  
   Serial.println("------------------------------------");
-  Serial.print  ("Gain:         "); Serial.println("Auto");
-  Serial.print  ("Timing:       "); Serial.println("13 ms");
+  Serial.print  ("Gain:         "); Serial.println("16x");
+  Serial.print  ("Timing:       "); Serial.println("101 ms");
+
   Serial.println("------------------------------------");
 }
 
@@ -218,14 +222,17 @@ boolean readMAX(double *valMAX) {
    unsigned long startMillis= millis();  // Start of sample window
    unsigned int peakToPeak = 0;   // peak-to-peak level
 
+   double voltageInput = 3.3;       
+   unsigned int inputMax = 676;   // 1024 for 5V input
    unsigned int signalMax = 0;
-   unsigned int signalMin = 1024;
+   unsigned int signalMin = inputMax;     
+
 
    // collect data for 50 mS
    while (millis() - startMillis < sampleWindow)
    {
       sample = analogRead(0);
-      if (sample < 1024)  // toss out spurious readings
+      if (sample < inputMax)  // toss out spurious readings
       {
          if (sample > signalMax)
          {
@@ -238,8 +245,8 @@ boolean readMAX(double *valMAX) {
       }
    }
    peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
-   double volts = (peakToPeak * 5.0) / 1024;  // convert to volts
-   if (volts >= 0.0 && volts <= 5.0) {
+   double volts = (peakToPeak * voltageInput) / inputMax;  // convert to volts
+   if (volts >= 0.0 && volts <= voltageInput) {
       *valMAX = volts;
       return true; 
    }

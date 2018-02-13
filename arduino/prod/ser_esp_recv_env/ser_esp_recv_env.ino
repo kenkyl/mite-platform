@@ -18,6 +18,8 @@
 
 /**************** Other *****************/
 #define INPUT_SIZE 31
+#define PIN_LED    4
+
 /****************************************/
 
 /********** Global State ****************/
@@ -29,15 +31,19 @@ Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO
 /****************************************/
 
 /*************** Feeds ******************/
-// Setup publishing feeds 
+// Setup pub/sub feeds 
 // Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
 Adafruit_MQTT_Publish light = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/photocell");
 Adafruit_MQTT_Publish humidity = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/humidity");
 Adafruit_MQTT_Publish temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/temp");
 Adafruit_MQTT_Publish noise = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/noise");
+Adafruit_MQTT_Subscribe switch_led = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/switch_led");
+Adafruit_MQTT_Subscribe switch_buz = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/switch_buzzer");
 /****************************************/
 
 void setup() {
+  pinMode(PIN_LED, OUTPUT);
+
   // define pin modes for tx, rx:
   Serial.begin(57600);
   
@@ -69,18 +75,42 @@ void setup() {
   Serial.println("-------------------------------------");
 
   Serial.println("\nSoftware serial RECV test started");
+  
+  mqtt.subscribe(&switch_led); 
 
   // wait 3 seconds to allow arduino to start transmitting data
   delay(3000); 
 }
 
+unsigned int led_timer = 0; 
 void loop() {
   MQTT_connect(); 
-  delay(50); 
+  //delay(50); 
+  // reset led if on for greater than 5 seconds 
+  if (led_timer >= 5000) {
+    digitalWrite(PIN_LED, LOW); 
+    led_timer = 0; 
+    Serial.println("LED OFF"); 
+  }
+
+  // check for push of led button 
+  Adafruit_MQTT_Subscribe *subscription;
+  while ((subscription = mqtt.readSubscription(100))) {
+    if (subscription == &switch_led) {
+      Serial.println("LED ON"); 
+      digitalWrite(PIN_LED, HIGH); 
+      led_timer = 0; 
+    }
+  }
+  // increment led timer by 50 ms
+  led_timer += 100; 
+
+  //
   char incomingSerialData[INPUT_SIZE+1] = {0};
   if (getCommand(incomingSerialData) > 0) {
     parseCommand(incomingSerialData); 
   }
+
 }
 
 int getCommand(char *incomingSerialData)

@@ -66,18 +66,23 @@ void setup() {
   Serial.println(WiFi.gatewayIP());
 
   mqtt.subscribe(&temp); 
+  mqtt.subscribe(&noise); 
 }
 
 void loop() {
   MQTT_connect(); 
 
   Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(5000))) {
+  while ((subscription = mqtt.readSubscription(3100))) {
     if (subscription == &temp) {
       Serial.print(F("temp:"));
-      Serial.print((char *)temp.lastread);
+      Serial.print((char *)temp.lastread);    // SEND IT 
       delay(250); 
       getOpenWeatherMap(); 
+    }
+    else if (subscription == &noise) {
+      Serial.print(F("noise:"));
+      Serial.print((char *)noise.lastread); 
     }
   }
 }
@@ -91,10 +96,10 @@ void getOpenWeatherMap() {
   strcat(connectionStringSTU, CITY_ID_STU); 
   strcat(connectionStringSTU, OPEN_WEATHER_KEY);
   // get Chicago data
-  sendWeatherRequest(connectionStringCHI, 0); 
+  sendWeatherRequest(connectionStringCHI, 0);      
   delay(250); 
   // get Stuttgart data
-  sendWeatherRequest(connectionStringSTU, 1);  
+  sendWeatherRequest(connectionStringSTU, 1);    
 }
 
 void sendWeatherRequest(char *connectionString, int num) {
