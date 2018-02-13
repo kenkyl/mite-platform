@@ -99,7 +99,7 @@ void getOpenWeatherMap() {
   sendWeatherRequest(connectionStringCHI, 0);      
   delay(250); 
   // get Stuttgart data
-  sendWeatherRequest(connectionStringSTU, 1);     
+  sendWeatherRequest(connectionStringSTU, 1);    
 }
 
 void sendWeatherRequest(char *connectionString, int num) {

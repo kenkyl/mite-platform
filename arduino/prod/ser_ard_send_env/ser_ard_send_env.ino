@@ -173,6 +173,7 @@ void configureSensor(void)
   Serial.println("------------------------------------");
   Serial.print  ("Gain:         "); Serial.println("16x");
   Serial.print  ("Timing:       "); Serial.println("101 ms");
+
   Serial.println("------------------------------------");
 }
 
@@ -225,6 +226,7 @@ boolean readMAX(double *valMAX) {
    unsigned int inputMax = 676;   // 1024 for 5V input
    unsigned int signalMax = 0;
    unsigned int signalMin = inputMax;     
+
 
    // collect data for 50 mS
    while (millis() - startMillis < sampleWindow)

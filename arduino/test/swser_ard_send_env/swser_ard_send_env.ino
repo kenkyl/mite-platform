@@ -17,7 +17,7 @@
 
 /* defines */
 #define PIN_DHT 4
-#define TYPE_DHT DHT11
+#define TYPE_DHT DHT22
 #define PIN_RX 10
 #define PIN_TX 11 
 #define OUTPUT_SIZE 31
@@ -78,7 +78,7 @@ void setup() {
 }
 
 void loop() { // run over and over
-    delay(500); 
+    //delay(500); 
     // read MAX
     double valMAX; 
     if (readMAX(&valMAX) == true) {

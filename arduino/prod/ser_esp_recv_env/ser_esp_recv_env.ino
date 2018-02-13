@@ -19,6 +19,7 @@
 /**************** Other *****************/
 #define INPUT_SIZE 31
 #define PIN_LED    4
+
 /****************************************/
 
 /********** Global State ****************/
@@ -42,6 +43,7 @@ Adafruit_MQTT_Subscribe switch_buz = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME
 
 void setup() {
   pinMode(PIN_LED, OUTPUT);
+
   // define pin modes for tx, rx:
   Serial.begin(57600);
   
@@ -73,9 +75,9 @@ void setup() {
   Serial.println("-------------------------------------");
 
   Serial.println("\nSoftware serial RECV test started");
-
   
   mqtt.subscribe(&switch_led); 
+
   // wait 3 seconds to allow arduino to start transmitting data
   delay(3000); 
 }
@@ -108,7 +110,7 @@ void loop() {
   if (getCommand(incomingSerialData) > 0) {
     parseCommand(incomingSerialData); 
   }
-  
+
 }
 
 int getCommand(char *incomingSerialData)
