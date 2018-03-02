@@ -1,51 +1,59 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h> 
+/*
+ * File:  display_esp_semd
+ * Desc:  Code for the ESP8266 Huzzah in the Display module. Receives data over 
+ *        
+ * Created:   15 Feburary 2018
+ * Modified:  02 March 2018
+ * 
+ * KEK1AD 
+ * RBNA - CI/IO
+ * Created for the MITE (Mini IoT Experience) Platform Demo in the Chicago Connectory 
+ */
+
+/*************** General ****************/
 #include <stdio.h>
 #include <string.h>
+/************ ESP8266 Wifi **************/
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h> 
+/**************** MQTT ******************/
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 
 /*********** WIFI Credentials ***********/
 #define WLAN_SSID   "connectory 2"        // UPDATE WIFI NETWORK HERE IF NEEDED 
 #define WLAN_PASS   "c0nn3ct0ry2"         // UPDATE WIFI PASSWORD HERE IF NEEDED 
-/****************************************/
 
 /********** Adafruit.io Setup  **********/
+// NOTE: Would replace with another MQTT Broker here! 
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883               // use 8883 for SSL
 #define AIO_USERNAME    "connectory_io"
 #define AIO_KEY         "76805a2a35c84583a9ac77cd9ec5f546"
-/****************************************/
 
 /*********** Open Weather Map ***********/
 #define OPEN_WEATHER_EP   "http://api.openweathermap.org/data/2.5/weather?"
 #define OPEN_WEATHER_KEY  "&APPID=116950798518f4c877a6923dfeb65fe9"
 #define CITY_ID_CHI       "id=4887398"   // city id for Chicago        
 #define CITY_ID_STU       "id=2825297"   // city id for Stuttgart
-/****************************************/
 
 /**************** Other *****************/
 #define PIN_SWITCH_LED     4
 #define PIN_SWITCH_BUZ     5
-/****************************************/
 
 /********** Global State ****************/
 // Create an ESP8266 WiFiClient class to connect to the MQTT server.
 WiFiClient client;
-
 // Setup the MQTT client class by passing in the WiFi client and MQTT server and login details.
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
 /*************** Feeds ******************/
-// Setup a feed called 'onoffbutton' for subscribing to changes.
-Adafruit_MQTT_Subscribe light = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/photocell");
 Adafruit_MQTT_Subscribe noise = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/noise");
-Adafruit_MQTT_Subscribe humidity = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/humidity");
 Adafruit_MQTT_Subscribe temp = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/temp");
 Adafruit_MQTT_Publish switch_led = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/switch_led");
 Adafruit_MQTT_Publish switch_buz = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/switch_buzzer");
-/****************************************/
 
+// Run once upon startup of the ESP
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(57600); 
@@ -77,11 +85,15 @@ void setup() {
   // subscribe to necessary feeds 
   mqtt.subscribe(&temp); 
   mqtt.subscribe(&noise); 
+
+  Serial.println("display_ard_recv initiated..."); 
 }
 
+// Loop constantly while the ESP is on
 void loop() {
-  MQTT_connect(); 
+  MQTT_connect(); // verify MQTT connection
 
+  // check for press of LED trigger button
   if (digitalRead(PIN_SWITCH_LED) == 1) {
     if (! switch_led.publish(1)) {
       Serial.println(F("switch_led publish failed"));
@@ -89,7 +101,7 @@ void loop() {
       Serial.println(F("switch_led publish OK!"));
     }
   }
-
+  // check for press of buzzer trigger button
   if (digitalRead(PIN_SWITCH_BUZ) == 1) {
     if (! switch_buz.publish(1)) {
       Serial.println(F("switch_buzzer publish failed"));
@@ -97,12 +109,11 @@ void loop() {
       Serial.println(F("switch_buzzer publish OK!"));
     }
   }
-  
-  //delay(100);
 
   // check specified subscription(s) for updates 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(100))) {
+    // if receiving temperature --> send to Arduino over serial and get weather data
     if (subscription == &temp) {
       Serial.print(F("temp:"));
       Serial.print((char *)temp.lastread);    // SEND IT 

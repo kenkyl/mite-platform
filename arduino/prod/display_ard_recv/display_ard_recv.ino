@@ -1,15 +1,28 @@
-/*  neopixel  */
+/*
+ * File:  display_ard_recv
+ * Desc:  Code for the Arduino Uno in the Display module. Receives data over serial from 
+ *        the corresponding ESP8266 and controls and 8x8 LED Matrix and 3 Neopixel LEDs
+ *        to track relative noise and temperature levels accordingly. 
+ *        
+ * Created:   15 Feburary 2018
+ * Modified:  02 March 2018
+ * 
+ * KEK1AD 
+ * RBNA - CI/IO
+ * Created for the MITE (Mini IoT Experience) Platform Demo in the Chicago Connectory 
+ */
+
+/************** Neopixel  ***************/
 #include <Adafruit_NeoPixel.h>
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
-
-/*  led matrix  */
+/************* LED Matrix  **************/
 #include <Wire.h>
 #include "Adafruit_LEDBackpack.h"
 #include "Adafruit_GFX.h"
 
-/*  neopixel  */
+/************** Neopixel  ***************/
 #define PIN            6
 #define NUMPIXELS      3
 
@@ -17,32 +30,28 @@
 #define INPUT_SIZE  31          // num bytes for serial messages 
 #define TEMP_MAX    40          // max temp in celcius 
 #define TEMP_MIN    -30         // min temp in celcius 
-/****************************************/
 
-/*  led matrix  */
+/************* LED Matrix  **************/
 const int maxScale = 8;
 const int redZone = 6;
 const int yellowZone = 4;
-const float maxVoltage = 3.3; 
-const int maxVal = 676;     // 1024 for 5v, 676 for 3.3v
 const float maxReading = 100.0; 
-
 Adafruit_BicolorMatrix matrix = Adafruit_BicolorMatrix();
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
+// Run once upon startup of the Arduino
 void setup() {
   Serial.begin(57600);
   pixels.begin(); 
-  pixels.show();    // initialze pixels to off
+  pixels.show();       // initialze pixels to off
   matrix.begin(0x70);  // pass in the address
   Serial.println("Starting..."); 
   delay(3000); 
 }
 
-void loop() {
-  // update 
-  
-  // check for temp updates for neopixels   
+// Loop constantly while the Arduino is on
+void loop() {  
+  // check for updates from ESP over serial    
   char incomingSerialData[INPUT_SIZE+1] = {0};  // buffer for incoming messages 
   if (getCommand(incomingSerialData) > 0) {
     parseCommand(incomingSerialData); 
@@ -50,9 +59,15 @@ void loop() {
   delay(50); 
 }
 
+/*
+ * Name:  updateSoundScroll(float reading) 
+ * Desc:  Receive a sound level reading from the ESP and update one column of the LED matrix 
+ *        accoriding to the level, where 0 squares illuminated is the min sound and 8 
+ *        is the max. 
+ */
 void updateSoundScroll(float reading) {  
    if (maxReading - reading <= 5) reading = maxReading;  // increase reading if within 5 of max (100%) 
-   int displayPeak = mapfloat2int(reading, 0.0, 100.0, 0, maxScale);
+   int displayPeak = mapfloat2int(reading, 0.0, 100.0, 0, maxScale);  // map reading from percentage 0-8
     
    // Update the display:
    for (int i = 0; i < 7; i++)  // shift the display left
@@ -80,11 +95,16 @@ void updateSoundScroll(float reading) {
          matrix.drawPixel(i, 7, LED_RED);
       }
    }
-   matrix.writeDisplay();  // write the changes we just made to the display
+   matrix.writeDisplay();  // write the changes to the display
 }
 
+/*
+ * Name:  updateTempLED(int index, float temp) 
+ * Desc:  Update the Neopixel LED at <index> to an RGB value corresponding to <temp>. The
+ *        color is 
+ */
 // map rgb color to neopixels 
-void RGB_Map(int index, float temp) {
+void updateTempLED(int index, float temp) {
   if (temp > 200) temp-=273.15; 
   int red = 0, green = 0, blue = 0; 
   float maximum = (float) TEMP_MAX; 
@@ -143,15 +163,15 @@ void parseCommand(char *commandString) {
 void setCommand(char *feed, char *value) {
   if (strcmp(feed, "temp") == 0) {
     float tempVal = atof(value); 
-    RGB_Map(0, tempVal); 
+    updateTempLED(0, tempVal); 
   }
   else if (strcmp(feed, "temp-out0") == 0) {
     float tempVal = atof(value); 
-    RGB_Map(1, tempVal);
+    updateTempLED(1, tempVal);
   }
   else if (strcmp(feed, "temp-out1") == 0) {
     float tempVal = atof(value);
-    RGB_Map(2, tempVal); 
+    updateTempLED(2, tempVal); 
   }
   else if (strcmp(feed, "noise") == 0) {
     float noiseVal = atof(value); 

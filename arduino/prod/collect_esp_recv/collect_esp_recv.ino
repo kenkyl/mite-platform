@@ -11,6 +11,7 @@
 /****************************************/
 
 /********** Adafruit.io Setup  **********/
+// NOTE: Would replace with another MQTT Broker here!
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883               // use 8883 for SSL
 #define AIO_USERNAME    "connectory_io"
@@ -87,7 +88,6 @@ bool buz_on = false;
 
 void loop() {
   MQTT_connect(); 
-  //delay(50); 
   // reset led if on for greater than 5 seconds 
   if (led_timer >= 5000) {
     digitalWrite(PIN_LED, LOW); 
@@ -134,6 +134,12 @@ void loop() {
 
 }
 
+/*
+ * Name:  getCommand(char *incomingSerialData) 
+ * Desc:  Checks the Serial Rx line for incoming data and, if found, writes it into the  
+ *        buffer <incomingSerialData>; 
+ * Rets:  the number of characters read as an int
+ */
 int getCommand(char *incomingSerialData)
 {
   int incomingSerialDataIndex = 0; 
@@ -154,23 +160,23 @@ void parseCommand(char *commandString) {
   // split the commandString into two segments separated by colon
   char *command = strtok(commandString, ":"); 
   if (command == NULL) return;    // exit function if no colon found
-  char pubSet[2][INPUT_SIZE/2+1]; 
+  char commandPair[2][INPUT_SIZE/2+1]; 
   int index = 0;  
-  // grab the feed and value from the command string and store separately in pubSet
+  // grab the feed and value from the command string and store separately in commandPair
   while (command != NULL && index < 2) { 
     if (command != NULL && command != 0 && strlen(command)>3) {
-      strcpy(pubSet[index], command); 
+      strcpy(commandPair[index], command); 
       index++;
     }
     command = strtok(NULL, ":"); 
   }  
   if (index > 1) {
-    if (pubSet[0] != NULL && pubSet[1] != NULL) {
-      Serial.print("pubSet[0]= ");
-      Serial.print(pubSet[0]); Serial.print(" ");
-      Serial.print("pubSet[1]= ");
-      Serial.println(pubSet[1]);
-      publishToFeed(pubSet[0], pubSet[1]); 
+    if (commandPair[0] != NULL && commandPair[1] != NULL) {
+      Serial.print("commandPair[0]= ");
+      Serial.print(commandPair[0]); Serial.print(" ");
+      Serial.print("commandPair[1]= ");
+      Serial.println(commandPair[1]);
+      publishToFeed(commandPair[0], commandPair[1]); 
     }
   }
 }
