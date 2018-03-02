@@ -14,9 +14,9 @@
 #define NUMPIXELS      3
 
 /**************** Other *****************/
-#define INPUT_SIZE  31
-#define TEMP_MAX    50          // max temp in celcius 
-#define TEMP_MIN    -40        
+#define INPUT_SIZE  31          // num bytes for serial messages 
+#define TEMP_MAX    40          // max temp in celcius 
+#define TEMP_MIN    -30         // min temp in celcius 
 /****************************************/
 
 /*  led matrix  */
@@ -27,13 +27,8 @@ const float maxVoltage = 3.3;
 const int maxVal = 676;     // 1024 for 5v, 676 for 3.3v
 const float maxReading = 100.0; 
 
-const int sampleWindow = 50; // Sample window width in mS (50 mS = 20Hz)
-unsigned int sample;
-
 Adafruit_BicolorMatrix matrix = Adafruit_BicolorMatrix();
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
-
-int delayval = 500; // delay for half a second
 
 void setup() {
   Serial.begin(57600);
@@ -48,27 +43,16 @@ void loop() {
   // update 
   
   // check for temp updates for neopixels   
-  char incomingSerialData[INPUT_SIZE+1] = {0};
+  char incomingSerialData[INPUT_SIZE+1] = {0};  // buffer for incoming messages 
   if (getCommand(incomingSerialData) > 0) {
     parseCommand(incomingSerialData); 
   }
   delay(50); 
 }
 
-void updateSoundScroll(float reading) {
-  //unsigned long startMillis= millis();  // Start of sample window
-  //unsigned int peakToPeak = 0;   // peak-to-peak level
-  
-  //unsigned int signalMax = 0;
-  //unsigned int signalMin = maxVal;
-  
-   Serial.print(reading); 
-
+void updateSoundScroll(float reading) {  
    if (maxReading - reading <= 5) reading = maxReading;  // increase reading if within 5 of max (100%) 
    int displayPeak = mapfloat2int(reading, 0.0, 100.0, 0, maxScale);
-   Serial.print("   ");
-   Serial.println(displayPeak); 
-   //delay(50);
     
    // Update the display:
    for (int i = 0; i < 7; i++)  // shift the display left
@@ -99,6 +83,7 @@ void updateSoundScroll(float reading) {
    matrix.writeDisplay();  // write the changes we just made to the display
 }
 
+// map rgb color to neopixels 
 void RGB_Map(int index, float temp) {
   if (temp > 200) temp-=273.15; 
   int red = 0, green = 0, blue = 0; 
@@ -108,7 +93,7 @@ void RGB_Map(int index, float temp) {
   red = (int)(max(0, 255*(ratio-1))); 
   blue = (int)(max(0, 255*(1-ratio))); 
   green = 255 - blue - red; 
-  // 
+  // set pixel color based on calculation and display 
   pixels.setPixelColor(index, pixels.Color(red, green, blue)); 
   pixels.show(); 
 }
@@ -156,7 +141,6 @@ void parseCommand(char *commandString) {
 }
 
 void setCommand(char *feed, char *value) {
-  //Serial.println(F("set command"));
   if (strcmp(feed, "temp") == 0) {
     float tempVal = atof(value); 
     RGB_Map(0, tempVal); 

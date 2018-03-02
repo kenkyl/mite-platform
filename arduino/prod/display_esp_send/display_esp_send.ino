@@ -6,8 +6,8 @@
 #include "Adafruit_MQTT_Client.h"
 
 /*********** WIFI Credentials ***********/
-#define WLAN_SSID   "connectory 2"
-#define WLAN_PASS   "c0nn3ct0ry2"
+#define WLAN_SSID   "connectory 2"        // UPDATE WIFI NETWORK HERE IF NEEDED 
+#define WLAN_PASS   "c0nn3ct0ry2"         // UPDATE WIFI PASSWORD HERE IF NEEDED 
 /****************************************/
 
 /********** Adafruit.io Setup  **********/
@@ -50,9 +50,10 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(57600); 
   pinMode(PIN_SWITCH_LED, INPUT); 
+  pinMode(PIN_SWITCH_BUZ, INPUT); 
   delay(100); 
 
-  Serial.println();
+  // connect to Wi-Fi 
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(WLAN_SSID);
@@ -73,6 +74,7 @@ void setup() {
   Serial.print("Gateway: ");
   Serial.println(WiFi.gatewayIP());
 
+  // subscribe to necessary feeds 
   mqtt.subscribe(&temp); 
   mqtt.subscribe(&noise); 
 }
@@ -80,8 +82,6 @@ void setup() {
 void loop() {
   MQTT_connect(); 
 
-//  Serial.print("Read switch input- ");
-//  Serial.println(digitalRead(PIN_SWITCH_LED));    // Read the pin and display the value
   if (digitalRead(PIN_SWITCH_LED) == 1) {
     if (! switch_led.publish(1)) {
       Serial.println(F("switch_led publish failed"));
@@ -100,6 +100,7 @@ void loop() {
   
   //delay(100);
 
+  // check specified subscription(s) for updates 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(100))) {
     if (subscription == &temp) {
@@ -115,6 +116,7 @@ void loop() {
   }
 }
 
+// creates HTTP request strings and sends request
 void getOpenWeatherMap() {
   char connectionStringCHI[128] = OPEN_WEATHER_EP;  
   char connectionStringSTU[128] = OPEN_WEATHER_EP; 
@@ -130,6 +132,7 @@ void getOpenWeatherMap() {
   sendWeatherRequest(connectionStringSTU, 1);    
 }
 
+// send HTTP request and parse JSON response for temperature 
 void sendWeatherRequest(char *connectionString, int num) {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;

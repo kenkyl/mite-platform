@@ -33,9 +33,6 @@ unsigned int sample;
 void setup() {  
   // Open serial communications and wait for port to open:
   Serial.begin(57600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
 
   Serial.println("\n***** ENVIRONMENTAL SENSOR DATA COLLECTOR STARTED *****");
 
@@ -69,9 +66,9 @@ void setup() {
 unsigned long timer = 0; 
 void loop() { 
 
-    if (timer >= 90000) timer = 0;  // reset timer each minute
+    if (timer >= 120000) timer = 0;  // reset timer each minute
     // semd all sensor data every 30 seconds 
-    if (timer % 90000 == 0) { 
+    if (timer % 120000 == 0) { 
       sendMAX(); 
       delay(75); 
       sendTSL(); 
@@ -81,7 +78,7 @@ void loop() {
     // send light and noise every 6 seconds 
     else if (timer % 6000 == 0) {
       sendMAX();
-      delay(50);    
+      delay(75);    
       sendTSL();
     }
     // send light every 3 seconds 
@@ -95,8 +92,6 @@ void loop() {
     
     delay(1000); 
     timer+=1000; 
-    //Serial.print("looped "); 
-    //Serial.println(timer); 
 }
 
 /***** SEND FUNCTIONS *****/

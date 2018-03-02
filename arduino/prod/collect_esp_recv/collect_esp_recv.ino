@@ -19,8 +19,8 @@
 
 /**************** Other *****************/
 #define INPUT_SIZE  31
-#define PIN_LED     4
-#define PIN_BUZ     5
+#define PIN_LED     12
+#define PIN_BUZ     14
 /****************************************/
 
 /********** Global State ****************/
@@ -43,14 +43,12 @@ Adafruit_MQTT_Subscribe switch_buz = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME
 /****************************************/
 
 void setup() {
-  pinMode(PIN_LED, OUTPUT);
 
   // define pin modes for tx, rx:
   Serial.begin(57600);
-  
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
+
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_BUZ, OUTPUT);
 
   // connect WiFi
   Serial.println();
@@ -81,7 +79,7 @@ void setup() {
   mqtt.subscribe(&switch_buz); 
 
   // wait 3 seconds to allow arduino to start transmitting data
-  delay(3000); 
+  delay(3000);  
 }
 
 unsigned int led_timer = 0, buz_timer = 0; 
@@ -94,7 +92,6 @@ void loop() {
   if (led_timer >= 5000) {
     digitalWrite(PIN_LED, LOW); 
     led_timer = 0; 
-    Serial.println("LED OFF"); 
   }
   
   // set buzzer tone based on timing and turn off after 6 seconds 
@@ -102,18 +99,17 @@ void loop() {
     noTone(PIN_BUZ); 
     buz_on = false; 
     buz_timer = 0; 
-    Serial.println("BUZZER OFF"); 
   }
   else if (buz_on == true && buz_timer >= 4000) {
     tone(PIN_BUZ, NOTE_G3, 2000);
   }
   else if (buz_on == true && buz_timer >= 2000) {
-    tone(PIN_BUZ, NOTE_A3, 2000); 
+    tone(PIN_BUZ, NOTE_G4, 2000); 
   }
   
   // check for push of led button 
   Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(100))) {
+  while ((subscription = mqtt.readSubscription(50))) {
     if (subscription == &switch_led) {
       Serial.println("LED ON"); 
       digitalWrite(PIN_LED, HIGH); 
@@ -121,17 +117,16 @@ void loop() {
     }
     else if (subscription == &switch_buz) {
       Serial.println("BUZZER ON");
-      //playBuzzerSong();  
-      tone(PIN_BUZ, NOTE_D3, 2000); 
+      tone(PIN_BUZ, NOTE_G2, 2000); 
       buz_on = true; 
       buz_timer = 0;
     }
   }
   // increment led timer by 50 ms
-  led_timer += 100; 
-  buz_timer += 100;
+  led_timer += 50; 
+  buz_timer += 50;
 
-  //
+  // check for incoming data from arduino 
   char incomingSerialData[INPUT_SIZE+1] = {0};
   if (getCommand(incomingSerialData) > 0) {
     parseCommand(incomingSerialData); 
@@ -152,7 +147,6 @@ int getCommand(char *incomingSerialData)
     // set last position to null terminating char
     incomingSerialData[incomingSerialDataIndex] = 0;
   }
-  
   return incomingSerialDataIndex; 
 }
 
