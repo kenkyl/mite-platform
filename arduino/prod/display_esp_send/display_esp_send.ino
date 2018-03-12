@@ -1,11 +1,18 @@
 /*
  * File:  display_esp_semd
- * Desc:  Code for the ESP8266 Huzzah in the Display module. Receives data over 
+ * Desc:  Code for the ESP8266 Huzzah in the Display module (2b). Connects to the MQTT 
+ *        broker via Wifi and collects and forwards data to the corresponding Arduino 
+ *        over serial. Also contains two buttons that when pressed publish to MQTT and 
+ *        trigger events at the collection module (turning on either a buzzer or LED).
  *        
- * Created:   15 Feburary 2018
- * Modified:  02 March 2018
+ * 1. [a.collect_ard_send]-->[b.colect_esp_recv]-->((cloud))
  * 
- * KEK1AD 
+ * 2. [a.display_ard_recv]<--[b.display_esp_send]<--((cloud))
+ * 
+ * Created:   15 Feburary 2018
+ * Modified:  12 March 2018
+ * 
+ * KEK1AD - kyle.kennedy@us.bosch.com
  * RBNA - CI/IO
  * Created for the MITE (Mini IoT Experience) Platform Demo in the Chicago Connectory 
  */
@@ -48,6 +55,8 @@ WiFiClient client;
 Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
 
 /*************** Feeds ******************/
+// Setup pub/sub feeds 
+// Notice MQTT paths for AIO follow the form: <username>/feeds/<feedname>
 Adafruit_MQTT_Subscribe noise = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/noise");
 Adafruit_MQTT_Subscribe temp = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/feeds/temp");
 Adafruit_MQTT_Publish switch_led = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/switch_led");
@@ -55,8 +64,8 @@ Adafruit_MQTT_Publish switch_buz = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/f
 
 // Run once upon startup of the ESP
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(57600); 
+  Serial.begin(57600);  // NOTE: Serial rate can be changed but must match display_ard_recv
+  // set input pins for buzzer and LED trigger buttons
   pinMode(PIN_SWITCH_LED, INPUT); 
   pinMode(PIN_SWITCH_BUZ, INPUT); 
   delay(100); 
@@ -72,21 +81,21 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
-
+  // print Wifi details
   Serial.println("");
   Serial.println("WiFi connected");  
-  Serial.println("IP address: ");
+  Serial.println("IP address= ");
   Serial.println(WiFi.localIP());
-  Serial.print("Netmask: ");
+  Serial.print("Netmask= ");
   Serial.println(WiFi.subnetMask());
-  Serial.print("Gateway: ");
+  Serial.print("Gateway= ");
   Serial.println(WiFi.gatewayIP());
 
   // subscribe to necessary feeds 
   mqtt.subscribe(&temp); 
   mqtt.subscribe(&noise); 
 
-  Serial.println("display_ard_recv initiated..."); 
+  Serial.println("display_esp_send initiated..."); 
 }
 
 // Loop constantly while the ESP is on
@@ -127,7 +136,13 @@ void loop() {
   }
 }
 
-// creates HTTP request strings and sends request
+/*
+ * Name:  getOpenWeatherMap 
+ * Args:  none 
+ * Desc:  Creates HTTP request strings for OpenWeatherMap.org API and passes them to 
+ *        sendWeatherRequest(char *connectionString, int num) function
+ * Rets:  void
+ */
 void getOpenWeatherMap() {
   char connectionStringCHI[128] = OPEN_WEATHER_EP;  
   char connectionStringSTU[128] = OPEN_WEATHER_EP; 
@@ -143,7 +158,14 @@ void getOpenWeatherMap() {
   sendWeatherRequest(connectionStringSTU, 1);    
 }
 
-// send HTTP request and parse JSON response for temperature 
+/*
+ * Name:  sendWeatherRequest 
+ * Args:  char *connectionString, int num 
+ * Desc:  Sends the HTTP request <connectionString> to the specified endpoint
+ *        (OpenWeatherMap.org) and parses json response to get the temperature. <num> is 
+ *        used to distinguish between different locations. 
+ * Rets:  void
+ */
 void sendWeatherRequest(char *connectionString, int num) {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
@@ -177,8 +199,13 @@ void sendWeatherRequest(char *connectionString, int num) {
   }
 }
 
-// Function to connect and reconnect as necessary to the MQTT server.
-// Should be called in the loop function and it will take care if connecting.
+/*
+ * Name:  MQTT_connect 
+ * Args:  none
+ * Desc:  Checks connection to the MQTT broker (server) and attemps to connect or reconnect
+ *        if not connected. Should be called in loop prior to communication attempts(). 
+ * Rets:  void
+ */
 void MQTT_connect() {
   int8_t ret;
 

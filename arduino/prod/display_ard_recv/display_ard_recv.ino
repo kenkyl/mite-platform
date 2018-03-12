@@ -6,7 +6,7 @@
  *        
  * 1. [a.collect_ard_send]-->[b.colect_esp_recv]-->((cloud))
  * 
- * 2. [a.display_ard_send]<--[b.display_esp_recv]<--((cloud))
+ * 2. [a.display_ard_recv]<--[b.display_esp_send]<--((cloud))
  *        
  * Created:   15 Feburary 2018
  * Modified:  06 March 2018
@@ -27,8 +27,8 @@
 #include "Adafruit_GFX.h"
 
 /************** Neopixel  ***************/
-#define PIN            6
-#define NUMPIXELS      3
+#define PIN            6        // pin for neopixel LEDs
+#define NUMPIXELS      3        // num of neopixel LEDs
 
 /**************** Other *****************/
 #define INPUT_SIZE  31          // num bytes for serial messages 
