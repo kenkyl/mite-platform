@@ -1,40 +1,45 @@
 /*
-  Software serial send multiple sensor data 
-  to ESP8266 via software serial
-
+ * File:  collect_ard_send
+ * Desc:  Code for the Arduino Uno in the Collection module (1a). Collects sensor data 
+ *        and forwards it to the corresponding ESP8266 over seial.   
+ *        
+ * 1. [a.collect_ard_send]-->[b.colect_esp_recv]-->((cloud))
+ * 
+ * 2. [a.display_ard_recv]<--[b.display_esp_send]<--((cloud))
+ *        
+ * Created:   15 Feburary 2018
+ * Modified:  12 March 2018
+ * 
+ * KEK1AD - kyle.kennedy@us.bosch.com
+ * RBNA - CI/IO
+ * Created for the MITE (Mini IoT Experience) Platform Demo in the Chicago Connectory 
  */
  
-/* includes */
-// general
+/*************** General ****************/
 #include <stdio.h> 
-// tsl
+/*************** Sensors ****************/
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_TSL2561_U.h>
-// dht
 #include "DHT.h"
 
-/* defines */
-#define PIN_DHT 4
-#define TYPE_DHT DHT22
-#define PIN_RX 10
-#define PIN_TX 11 
-#define OUTPUT_SIZE 31
+/**************** Other *****************/
+#define PIN_DHT 4           // pin for DHT sensor
+#define TYPE_DHT DHT22      // DHT sensor type
+#define PIN_RX 10           // Serial receive pin
+#define PIN_TX 11           // Serial transmit pin
+#define OUTPUT_SIZE 31      // num byes for serial messages
 
-/* globals */
-// tsl
+/********** Global State ****************/
 Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
-// dht
 DHT dht(PIN_DHT, TYPE_DHT);
-// max
-const int sampleWindow = 50; // Sample window width in mS (50 mS = 20Hz)
+const int sampleWindow = 50;  // Sample window for MAX sensor, width in mS (50 mS = 20Hz)
 unsigned int sample;
+unsigned long timer = 0; 
 
+// Run once upon startup of the Arduino
 void setup() {  
-  // Open serial communications and wait for port to open:
-  Serial.begin(57600);
-
-  Serial.println("\n***** ENVIRONMENTAL SENSOR DATA COLLECTOR STARTED *****");
+  Serial.begin(57600);    // NOTE: Serial rate can be changed but must match collect_esp_recv
 
   /* Initialise the sensors */
   // (1) tsl
@@ -50,7 +55,6 @@ void setup() {
   displaySensorDetails();
   /* Setup the sensor gain and integration time */
   configureSensor();
-  /* We're ready to go! */
   Serial.println("(1) TSL sensor intialized");
 
   // (2) dht 
@@ -63,11 +67,10 @@ void setup() {
   delay(100); 
 }
 
-unsigned long timer = 0; 
+// Loop constantly while the Arduino is on
 void loop() { 
-
-    if (timer >= 120000) timer = 0;  // reset timer each minute
-    // semd all sensor data every 30 seconds 
+    if (timer >= 120000) timer = 0;  // reset timer every 2 minutes
+    // semd all sensor data every 120 seconds 
     if (timer % 120000 == 0) { 
       sendMAX(); 
       delay(75); 
@@ -89,13 +92,19 @@ void loop() {
     else if (timer % 2000 == 0) {
       sendMAX(); 
     }
-    
+
+    // delay one second and increment timer
     delay(1000); 
     timer+=1000; 
 }
 
-/***** SEND FUNCTIONS *****/
-void sendTSL() {
+/*
+ * Name:  sendTSL 
+ * Args:  none 
+ * Desc:  Read the current light value from the TSL sensor and forward it over serial.
+ * Rets:  void
+ */
+ void sendTSL() {
   float valTSL; 
   if (readTSL(&valTSL) == true) {
     Serial.print("light:"); 
@@ -104,6 +113,13 @@ void sendTSL() {
     Serial.println("MAX read fail!");
   }
 }
+
+/*
+ * Name:  sendMAX 
+ * Args:  none 
+ * Desc:  Read the current noise value from the MAX sensor and forward it over serial.
+ * Rets:  void
+ */
 void sendMAX() {
   double valMAX; 
   if (readMAX(&valMAX) == true) {
@@ -113,6 +129,14 @@ void sendMAX() {
     Serial.println("MAX read fail!");
   }
 }
+
+/*
+ * Name:  sendDHT 
+ * Args:  none 
+ * Desc:  Read the current temp and humidity values from the DHT sensor and forward 
+ *        them over serial.
+ * Rets:  void
+ */
 void sendDHT() {
   float valDHT[2]; 
   if (readDHT(valDHT) == true) {
@@ -126,15 +150,13 @@ void sendDHT() {
   }
 }
 
-/***** HELPER FUNCTIONS *****/
-// tsl
-/**************************************************************************/
 /*
-    Displays some basic information on this sensor from the unified
-    sensor API sensor_t type (see Adafruit_Sensor for more information)
-*/
-/**************************************************************************/
-void displaySensorDetails(void)
+ * Name:  displaySensorDetails 
+ * Args:  none 
+ * Desc:  Displays some basic info about the TSL sensor. Called in start(). 
+ * Rets:  void
+ */
+void displaySensorDetails()
 {
   sensor_t sensor;
   tsl.getSensor(&sensor);
@@ -150,16 +172,17 @@ void displaySensorDetails(void)
   delay(500);
 }
 
-/**************************************************************************/
 /*
-    Configures the gain and integration time for the TSL2561
-*/
-/**************************************************************************/
-void configureSensor(void)
+ * Name:  configureSensor 
+ * Args:  none 
+ * Desc:  Configures the gain and timing of the TSL sensor on startup.
+ * Rets:  void
+ */
+void configureSensor()
 {
   /* You can also manually set the gain or enable auto-gain support */
-  // tsl.setGain(TSL2561_GAIN_1X);      /* No gain ... use in bright light to avoid sensor saturation */
-  tsl.setGain(TSL2561_GAIN_16X);     /* 16x gain ... use in low light to boost sensitivity */
+  // tsl.setGain(TSL2561_GAIN_1X);        /* No gain ... use in bright light to avoid sensor saturation */
+  tsl.setGain(TSL2561_GAIN_16X);        /* 16x gain ... use in low light to boost sensitivity */
   //tsl.setGain(TSL2561_GAIN_8X);
   //tsl.enableAutoRange(true);            /* Auto-gain ... switches automatically between 1x and 16x */
   
@@ -172,10 +195,16 @@ void configureSensor(void)
   Serial.println("------------------------------------");
   Serial.print  ("Gain:         "); Serial.println("16x");
   Serial.print  ("Timing:       "); Serial.println("101 ms");
-
   Serial.println("------------------------------------");
 }
 
+/*
+ * Name:  readTSL 
+ * Args:  float *valTSL 
+ * Desc:  Reads the current light value from the TSL sensor. Updates the float buffer 
+ *        <valTSL> that is passed by reference with the new value. 
+ * Rets:  boolean true or false according to the success of reading from the sensor 
+ */
 boolean readTSL(float *valTSL) {
   /* Get a new sensor event */ 
   sensors_event_t event;
@@ -196,7 +225,13 @@ boolean readTSL(float *valTSL) {
   }
 }
 
-// dht 
+/*
+ * Name:  readDHT 
+ * Args:  float *valDHT 
+ * Desc:  Reads the current temp and humidity values from the DHT sensor. Updates the 
+ *        float buffer <valDHT> that is passed by reference with the new value. 
+ * Rets:  boolean true or false according to the success of reading from the sensor
+ */
 boolean readDHT(float *valDHT) {
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -216,7 +251,13 @@ boolean readDHT(float *valDHT) {
   return true; 
 }
 
-// max 
+/*
+ * Name:  readMAX
+ * Args:  float *valMAX 
+ * Desc:  Reads the current noise value from the MAX sensor. Updates the double buffer
+ *        <valMAX> that is passed by reference with the new value. 
+ * Rets:  boolean true or false according to the success of reading from the sensor
+ */
 boolean readMAX(double *valMAX) {
    unsigned long startMillis = millis();  // Start of sample window
    unsigned int peakToPeak = 0;   // peak-to-peak level
@@ -225,7 +266,6 @@ boolean readMAX(double *valMAX) {
    unsigned int inputMax = 676;   // 1024 for 5V input
    unsigned int signalMax = 0;
    unsigned int signalMin = inputMax;     
-
 
    // collect data for 50 mS
    while (millis() - startMillis < sampleWindow)
